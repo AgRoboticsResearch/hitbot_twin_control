@@ -2,23 +2,28 @@
 control the hitbot with twin robot arm
 ## Commands:
  You can test some function through simple commands below.
-
+### start real robot hardware
 ```bash
 # start real robot
 roslaunch hitbot_bringup real_arm.launch 
 
 ```
-
+### start twin controller
 ```bash
-# run hitbot_twin_robot
+# run twin controller
 rosrun hitbot_twin_control hitbot_twin_control_node
 ```
-
+### switch controller type
 ```bash
-# change controller
+# switch controller from trajectory controller to position controller
 rosservice call /controller_manager/switch_controller "start_controllers: ['hitbot_joint_group_position_controller']
 stop_controllers: ['hitbot_joint_traj_controller']
 strictness: 0
 start_asap: false
 timeout: 0.0"
+```
+### twin controller commands
+```bash
+- arm-joints command:/hitbot_joint_group_position_controller/command(Float64MultiArray)
+- gripper command: /hitbot_claw_position(Float64)
 ```

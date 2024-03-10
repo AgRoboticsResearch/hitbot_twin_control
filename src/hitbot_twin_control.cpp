@@ -6,7 +6,10 @@ HITBOT_TWIN_CONTROL::HITBOT_TWIN_CONTROL(ros::NodeHandle &nh)
     /* Setting parameters */
     _nh = &nh;
     // the topic name depend on the controller's name
-    joints_command_pub = _nh->advertise<sensor_msgs::JointState>("/hitbot_joint_group_position_controller/command", 10);
+    // joints_command_pub = _nh->advertise<sensor_msgs::JointState>("/hitbot_joint_traj_controller/command", 10);
+    // joints_command_pub = _nh->advertise<trajectory_msgs::JointTrajectory>("/hitbot_joint_traj_controller/command", 10);
+    joints_command_pub = _nh->advertise<std_msgs::Float64MultiArray>("/hitbot_joint_group_position_controller/command", 1);
+    claw_command_pub = nh.advertise<std_msgs::Float64>("/hitbot_claw_position", 1);
 
     this->init();
 }
@@ -18,11 +21,13 @@ void HITBOT_TWIN_CONTROL::init()
     std::string init_msg = "";
     // initialize the reading of the encoder
     // the port is renamed based upon the env id
-    ctx = modbus_new_rtu("/dev/ttyUSB_fake_robot", 115200, 'N', 8, 1);
+    ctx = modbus_new_rtu("/dev/ttyUSB_twin_robot", 115200, 'N', 8, 1);
     if (ctx == nullptr)
     {
         init_msg = "Unable to create the libmodbus context\n";
         ROS_INFO("%s %s", node_name.c_str(), init_msg.c_str());
+        // TOOD: add ros error here
+
     }
     if (modbus_connect(ctx) == -1)
     {
@@ -31,26 +36,47 @@ void HITBOT_TWIN_CONTROL::init()
         // modbus_strerror(errno) << "\n";
         // release the ctx
         modbus_free(ctx);
+        // TOOD: add ros error here
+
     }
+
     // why??
     uint32_t to_sec = 1;    // s
     uint32_t to_usec = 100; // us
     modbus_set_response_timeout(ctx, to_sec, to_usec);
-}
 
+    ROS_INFO("Hitbot Twin Control Initialized!!");
+}
+void HITBOT_TWIN_CONTROL::publish_claw_command()
+{
+
+    std_msgs::Float64 claw_dist;
+    claw_dist.data = claw_open_dist;
+    claw_command_pub.publish(claw_dist);
+}
 void HITBOT_TWIN_CONTROL::publish_joint_command()
 {
 
-    sensor_msgs::JointState joint_state;
-    joint_state.header.stamp = ros::Time::now(); // Current time
-
+    std_msgs::Float64MultiArray joint_cmd;
+    // sensor_msgs::JointState joint_cmd;
+    // trajectory_msgs::JointTrajectory joint_cmd;
+    // trajectory_msgs::JointTrajectoryPoint point;
+    // joint_cmd.header.stamp = ros::Time::now(); // Current time
+    // joint_cmd.joint_names = {
+    //     "joint1",
+    //     "joint2",
+    //     "joint3",
+    //     "joint4",
+    // };
     // TODO: Replace the next lines with actual encoder reading and conversion logic
-    // Dummy values for demonstration
-    joint_state.position.assign(twin_angles, twin_angles + 4);
-    // joint_state.position = twin_angles; // Example value for joint1
 
+    // Dummy values for demonstration
+    // joint_cmd.position.assign(twin_angles, twin_angles + 4);
+    joint_cmd.data.insert(joint_cmd.data.end(), std::begin(twin_angles), std::end(twin_angles));
+    // point.positions.assign(twin_angles, twin_angles + 4);
+    // joint_cmd.points.push_back(point);
     // Publish the joint state message
-    joints_command_pub.publish(joint_state);
+    joints_command_pub.publish(joint_cmd);
 }
 
 double HITBOT_TWIN_CONTROL::degrees_radians_normalized(double degrees)
@@ -91,15 +117,22 @@ void HITBOT_TWIN_CONTROL::encoder_read()
     if (read_value_from_register[0] != 0 && read_value_from_register[1] != 0)
     {
 
-        twin_angles[2] = degrees_radians_normalized(linear_map(read_value_from_register[2], 3994, 1195, 90, -90));
-        twin_angles[1] = degrees_radians_normalized(linear_map(read_value_from_register[1], 1480, 960, 0, 30));
-        // round to two decimals
-        twin_angles[1] = degrees_radians_normalized(std::round(twin_angles[1] * 100.0) / 100.0);
-        twin_angles[4] = degrees_radians_normalized(linear_map(read_value_from_register[4], 3400, 720, -90, 90));
-        twin_angles[3] = degrees_radians_normalized(linear_map(read_value_from_register[3], 900, 3560, 90, -90));
-        twin_angles[0] = degrees_radians_normalized(linear_map(read_value_from_register[0], 650, 3000, -10, -160));
+        twin_angles[1] = degrees_radians_normalized(linear_map(read_value_from_register[3], 800, 3460, 90, -90));
+        twin_angles[3] = degrees_radians_normalized(linear_map(read_value_from_register[2], 3994, 1195, 90, -90));
+        twin_angles[2] = degrees_radians_normalized(linear_map(read_value_from_register[4], 3400, 560, -90, 90));
+        twin_angles[0] = linear_map(read_value_from_register[0], 650, 3000, -10, -160)/1000;
+        
+        // E-claw
+        claw_open_dist = degrees_radians_normalized(linear_map(read_value_from_register[1], 1480, 800, 0, 30));
+        claw_open_dist = degrees_radians_normalized(std::round(claw_open_dist * 100.0) / 100.0);
         // twin_angles[2] = twin_angles[2] + twin_angles[3] + twin_angles[4] - 28;
     }
+    // std::cout << "Register values from angle : ";
+    // for (float reg : twin_angles)
+    // {
+    //     std::cout << reg << " ";
+    // }
+    // std::cout << "\n";
 }
 
 // read registers
@@ -125,8 +158,8 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "hitbot_twin_controller");
     ros::NodeHandle nh("~");
-
-    ros::Rate rate(300.0);
+    ros::Rate rate(500.0);
+    
     HITBOT_TWIN_CONTROL twin_control(nh);
     while (ros::ok())
     {
@@ -135,6 +168,7 @@ int main(int argc, char **argv)
         twin_control.encoder_read();
         // publish it as joint_state msg
         twin_control.publish_joint_command();
+        twin_control.publish_claw_command();
         rate.sleep();
     }
 

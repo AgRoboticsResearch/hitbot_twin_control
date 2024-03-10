@@ -8,6 +8,10 @@
 #include <chrono>
 #include <unistd.h>
 #include <sensor_msgs/JointState.h>
+#include <std_msgs/Float64MultiArray.h>
+#include <trajectory_msgs/JointTrajectory.h>
+#include <std_msgs/Float64.h>
+
 #include <string>
 /**
  * @brief This class wraps the functions of unitree-arm-sdk
@@ -25,12 +29,14 @@ public:
     double degrees_radians_normalized(double);
     double linear_map(double, double, double, double, double);
     void publish_joint_command();
+    void publish_claw_command();
     std::string node_name;
 
     ros::Publisher joints_command_pub;
-
+    ros::Publisher claw_command_pub;
     // control command for hitbot
     double twin_angles[4];
+    double claw_open_dist;
     std::vector<uint16_t> read_registers(modbus_t *, int, int, int);
     void write_float_to_slave(modbus_t *, int, int, float);
     double round_number_to_two_decimal(double);

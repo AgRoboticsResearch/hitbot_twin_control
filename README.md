@@ -2,6 +2,10 @@
 control the hitbot with twin robot arm
 ## Commands:
  You can test some function through simple commands below.
+## Dependency
+```bash
+sudo apt-get install libmodbus-dev
+```
 ### start real robot hardware
 ```bash
 # start real robot

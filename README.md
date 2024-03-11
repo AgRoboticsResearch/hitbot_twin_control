@@ -31,7 +31,7 @@ timeout: 0.0"
 ### usb device rule files
 - create two files in '/etc/udev/rules.d/' with the name as:
     - ee_gripper.rules
-      - contents: KERNEL=="ttyUSB1", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="2303", MODE:="0777", SYMLINK+="ttyUSB_girpper"
+      - contents: SUBSYSTEM=="usb", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="2303", MODE:="0777", SYMLINK+="ttyUSB_girpper"
     - fake_robot.rules
-       - contents: KERNEL=="ttyUSB0", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", MODE:="0777", SYMLINK+="ttyUSB_twin_robot"
+       - contents: SUBSYSTEM=="usb", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", MODE:="0777", SYMLINK+="ttyUSB_twin_robot"
 

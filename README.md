@@ -6,6 +6,8 @@ control the hitbot with twin robot arm
 ## Dependency
 ```bash
 sudo apt-get install libmodbus-dev
+# REMOVE brltty if you are in ubuntu 22.04 and can not find CH340(USB to 232) in /dev/ttyUSB
+sudo apt remove brltty
 ```
 ### start real robot hardware
 ```bash
@@ -36,7 +38,11 @@ timeout: 0.0"
 ### usb device rule files
 - create two files in '/etc/udev/rules.d/' with the name as:
     - ee_gripper.rules
-      - contents: SUBSYSTEM=="usb", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="2303", MODE:="0777", SYMLINK+="ttyUSB_girpper"
+    ```bash
+    SUBSYSTEM=="usb", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="2303", MODE:="0777", SYMLINK+="ttyUSB_girpper"
+    ```
     - fake_robot.rules
-       - contents: SUBSYSTEM=="usb", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", MODE:="0777", SYMLINK+="ttyUSB_twin_robot"
+    ```bash
+     SUBSYSTEM=="usb", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", MODE:="0777", SYMLINK+="ttyUSB_twin_robot"
+     ```
 

@@ -10,6 +10,7 @@ HITBOT_TWIN_CONTROL::HITBOT_TWIN_CONTROL(ros::NodeHandle &nh)
     // joints_command_pub = _nh->advertise<trajectory_msgs::JointTrajectory>("/hitbot_joint_traj_controller/command", 10);
     joints_command_pub = _nh->advertise<std_msgs::Float64MultiArray>("/hitbot_joint_group_position_controller/command", 1);
     claw_command_pub = nh.advertise<std_msgs::Float64>("/hitbot_claw_position", 1);
+    joints_state_cmd_pub = _nh->advertise<sensor_msgs::JointState>("/hitbot_scara/joints_command", 10);
 
     this->init();
 }
@@ -77,6 +78,22 @@ void HITBOT_TWIN_CONTROL::publish_joint_command()
     // joint_cmd.points.push_back(point);
     // Publish the joint state message
     joints_command_pub.publish(joint_cmd);
+
+
+    // publish joint state message in <sensor_msgs::JointState>
+    joint_command.position.resize(4);
+    joint_command.header.stamp = ros::Time::now(); // Current time
+    joint_command.name = {
+        "joint1",
+        "joint2",
+        "joint3",
+        "joint4",
+    };
+    for (int i = 0; i < 4; ++i) {
+        joint_command.position[i] = twin_angles[i];
+    }
+    joints_state_cmd_pub.publish(joint_command);
+
 }
 
 double HITBOT_TWIN_CONTROL::degrees_radians_normalized(double degrees)
@@ -114,19 +131,29 @@ double HITBOT_TWIN_CONTROL::linear_map(double value, double src_range_start, dou
 void HITBOT_TWIN_CONTROL::encoder_read()
 {
     std::vector<uint16_t> read_value_from_register = read_registers(ctx, 2, 0x00, 5);
+    double twin_angles_deg[4];
     if (read_value_from_register[0] != 0 && read_value_from_register[1] != 0)
-    {
+    {   
 
-        twin_angles[1] = degrees_radians_normalized(linear_map(read_value_from_register[3], 800, 3460, 90, -90));
-        twin_angles[3] = degrees_radians_normalized(linear_map(read_value_from_register[2], 3994, 1195, 90, -90));
-        twin_angles[2] = degrees_radians_normalized(linear_map(read_value_from_register[4], 3400, 560, -90, 90));
-        twin_angles[0] = linear_map(read_value_from_register[0], 650, 3000, -10, -160)/1000;
+        twin_angles_deg[3] = linear_map(read_value_from_register[3], 900, 3560, 90, -90);
+        twin_angles_deg[2] = linear_map(read_value_from_register[2], 3994, 1195, 90, -90);
+        twin_angles_deg[4] = linear_map(read_value_from_register[4], 3400, 720, -90, 90);
+        twin_angles_deg[0] = linear_map(read_value_from_register[0], 650, 3000, -10, -160);
+
+
+        twin_angles[0] = twin_angles_deg[0]/1000;
+        twin_angles[1] = degrees_radians_normalized(twin_angles_deg[3]);
+        twin_angles[2] = degrees_radians_normalized(twin_angles_deg[4]);
+        twin_angles[3] = degrees_radians_normalized(twin_angles_deg[2]);
         
         // E-claw
         claw_open_dist = degrees_radians_normalized(linear_map(read_value_from_register[1], 1480, 800, 0, 30));
         claw_open_dist = degrees_radians_normalized(std::round(claw_open_dist * 100.0) / 100.0);
         // twin_angles[2] = twin_angles[2] + twin_angles[3] + twin_angles[4] - 28;
     }
+    
+    // std::cout << "twin_angles_deg: " << twin_angles_deg[3] << ", " << twin_angles_deg[4] << ", " << twin_angles_deg[0] << ", " << twin_angles_deg[2] << std::endl;
+
     // std::cout << "Register values from angle : ";
     // for (float reg : twin_angles)
     // {
@@ -158,7 +185,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "hitbot_twin_controller");
     ros::NodeHandle nh("~");
-    ros::Rate rate(500.0);
+    ros::Rate rate(30.0);
     
     HITBOT_TWIN_CONTROL twin_control(nh);
     while (ros::ok())

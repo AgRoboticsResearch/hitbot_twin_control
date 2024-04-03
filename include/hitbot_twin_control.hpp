@@ -32,8 +32,10 @@ public:
     void publish_claw_command();
     std::string node_name;
 
-    ros::Publisher joints_command_pub;
+    ros::Publisher joints_command_pub, joints_state_cmd_pub;
     ros::Publisher claw_command_pub;
+    sensor_msgs::JointState joint_command;
+
     // control command for hitbot
     double twin_angles[4];
     double claw_open_dist;
